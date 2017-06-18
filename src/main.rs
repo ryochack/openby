@@ -1,21 +1,64 @@
 #[macro_use]
 extern crate serde_derive;
 extern crate toml;
+extern crate getopts;
+use std::io;
+use std::result;
+use std::env;
+use getopts::Options;
+use getopts::ParsingStyle;
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 struct Config {
     version: toml::Value,
     tools: Vec<Tools>,
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize)]
 struct Tools {
     command: toml::Value,
     extentions: toml::value::Array,
 }
 
+pub type Result<T> = result::Result<T, io::Error>;
+
+fn print_usage(program: &str, opts: &Options) {
+    let brief = format!("Usage: {} [options] FILE", program);
+    print!("{}", opts.usage(&brief));
+}
+
 fn main() {
-    println!("Hello, world!");
+    let exit_code = run();
+    std::process::exit(exit_code);
+}
+
+fn run() -> i32 {
+    let args: Vec<String> = env::args().collect();
+    let ref program = &args[0];
+
+    let mut opts = Options::new();
+    opts.parsing_style(ParsingStyle::FloatingFrees);
+    opts.optopt("c", "config", "specify configure file name", "CONFIG");
+    opts.optflag("h", "help", "print this help menu");
+
+    let matches = opts.parse(&args[1..]).unwrap();
+
+    if matches.opt_present("h") {
+        print_usage(&program, &opts);
+        return 0;
+    }
+
+    let filename = if !matches.free.is_empty() {
+        matches.free[0].clone()
+    } else {
+        print_usage(&program, &opts);
+        return 1;
+    };
+
+    println!("{:?}", matches.free);
+    0
 }
 
 #[test]
