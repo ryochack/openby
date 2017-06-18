@@ -2,11 +2,12 @@
 extern crate serde_derive;
 extern crate toml;
 extern crate getopts;
-use std::io;
-use std::result;
 use std::env;
+use std::process;
 use getopts::Options;
 use getopts::ParsingStyle;
+
+const DEFAULT_CONF_PATH: &str = "~/.config/openby/config";
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
@@ -22,20 +23,21 @@ struct Tools {
     extentions: toml::value::Array,
 }
 
-pub type Result<T> = result::Result<T, io::Error>;
-
-fn print_usage(program: &str, opts: &Options) {
-    let brief = format!("Usage: {} [options] FILE", program);
-    print!("{}", opts.usage(&brief));
-}
-
 fn main() {
-    let exit_code = run();
-    std::process::exit(exit_code);
+    let exit_code = match run() {
+        Ok(_) => 0,
+        Err(e) => e,
+    };
+    process::exit(exit_code);
 }
 
-fn run() -> i32 {
-    let args: Vec<String> = env::args().collect();
+fn run() -> Result<i32, i32> {
+    let (file_name, conf_name) = parse_options(env::args().collect())?;
+    println!("Ok: {} {}", file_name, conf_name);
+    Ok(0)
+}
+
+fn parse_options(args: Vec<String>) -> Result<(String, String), i32> {
     let ref program = &args[0];
 
     let mut opts = Options::new();
@@ -47,18 +49,41 @@ fn run() -> i32 {
 
     if matches.opt_present("h") {
         print_usage(&program, &opts);
-        return 0;
+        return Err(0);
     }
 
-    let filename = if !matches.free.is_empty() {
+    let file_name = if !matches.free.is_empty() {
         matches.free[0].clone()
     } else {
         print_usage(&program, &opts);
-        return 1;
+        return Err(1);
     };
 
-    println!("{:?}", matches.free);
-    0
+    let conf_name = if let Some(c) = matches.opt_str("c") {
+        c
+    } else {
+        DEFAULT_CONF_PATH.to_string()
+    };
+
+    Ok((file_name, conf_name))
+}
+
+fn print_usage(program: &str, opts: &Options) {
+    let brief = format!("Usage: {} [options] FILE", program);
+    print!("{}", opts.usage(&brief));
+}
+
+#[test]
+fn test_parse_options() {
+    let no_arguments = vec!["openby", "input.file", "-c", "configure.file"];
+    assert_eq!(Err(1),
+               parse_options(no_arguments[0..1].iter().map(|s| s.to_string()).collect()));
+
+    assert_eq!(Ok(("input.file".to_string(), DEFAULT_CONF_PATH.to_string())),
+               parse_options(no_arguments[0..2].iter().map(|s| s.to_string()).collect()));
+
+    assert_eq!(Ok(("input.file".to_string(), "configure.file".to_string())),
+               parse_options(no_arguments.iter().map(|s| s.to_string()).collect()));
 }
 
 #[test]
