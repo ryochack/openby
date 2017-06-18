@@ -3,11 +3,22 @@ extern crate serde_derive;
 extern crate toml;
 extern crate getopts;
 use std::env;
+use std::fs;
+use std::io;
+use std::io::prelude::*;
+use std::io::Write;
+use std::path;
 use std::process;
 use getopts::Options;
 use getopts::ParsingStyle;
 
 const DEFAULT_CONF_PATH: &str = "~/.config/openby/config";
+
+#[derive(Debug)]
+enum AppError {
+    Io(io::Error),
+    Toml(toml::de::Error),
+}
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
@@ -26,20 +37,26 @@ struct Tools {
 fn main() {
     let exit_code = match run() {
         Ok(_) => 0,
-        Err(e) => e,
+        Err(e) => {
+            writeln!(&mut io::stderr(), "{:?}", e).unwrap();
+            1
+        }
     };
     process::exit(exit_code);
 }
 
-fn run() -> Result<i32, i32> {
+fn run() -> Result<i32, AppError> {
     let args: Vec<String> = env::args().collect();
     let args_str: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     let (file_name, conf_name) = parse_options(args_str)?;
     println!("Ok: {} {}", file_name, conf_name);
+
+    load_config(conf_name)?;
+
     Ok(0)
 }
 
-fn parse_options(args: Vec<&str>) -> Result<(String, String), i32> {
+fn parse_options(args: Vec<&str>) -> Result<(String, String), AppError> {
     let ref program = &args[0];
 
     let mut opts = Options::new();
@@ -51,14 +68,15 @@ fn parse_options(args: Vec<&str>) -> Result<(String, String), i32> {
 
     if matches.opt_present("h") {
         print_usage(&program, &opts);
-        return Err(0);
+        process::exit(0);
     }
 
     let file_name = if !matches.free.is_empty() {
         matches.free[0].clone()
     } else {
         print_usage(&program, &opts);
-        return Err(1);
+        return Result::Err(AppError::Io(io::Error::new(io::ErrorKind::NotFound,
+                                                       "FILE is not found")));
     };
 
     let conf_name = if let Some(c) = matches.opt_str("c") {
@@ -72,7 +90,24 @@ fn parse_options(args: Vec<&str>) -> Result<(String, String), i32> {
 
 fn print_usage(program: &str, opts: &Options) {
     let brief = format!("Usage: {} [options] FILE", program);
-    print!("{}", opts.usage(&brief));
+    println!("{}", opts.usage(&brief));
+}
+
+fn load_config(conf_name: String) -> Result<Config, AppError> {
+    let path = path::Path::new(conf_name.as_str());
+    if path.exists() == false {
+        return Result::Err(AppError::Io(io::Error::new(io::ErrorKind::NotFound,
+                                                       format!("{} is not exist",
+                                                               path.to_str().unwrap_or("")))));
+    }
+
+    let mut reader = io::BufReader::new(fs::File::open(path).map_err(AppError::Io)?);
+    let mut s = String::new();
+    reader.read_to_string(&mut s).map_err(AppError::Io)?;
+
+    let config: Config = toml::from_str(s.as_str()).map_err(AppError::Toml)?;
+
+    Ok(config)
 }
 
 #[test]
