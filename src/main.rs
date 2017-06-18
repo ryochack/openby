@@ -32,12 +32,14 @@ fn main() {
 }
 
 fn run() -> Result<i32, i32> {
-    let (file_name, conf_name) = parse_options(env::args().collect())?;
+    let args: Vec<String> = env::args().collect();
+    let args_str: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
+    let (file_name, conf_name) = parse_options(args_str)?;
     println!("Ok: {} {}", file_name, conf_name);
     Ok(0)
 }
 
-fn parse_options(args: Vec<String>) -> Result<(String, String), i32> {
+fn parse_options(args: Vec<&str>) -> Result<(String, String), i32> {
     let ref program = &args[0];
 
     let mut opts = Options::new();
@@ -76,14 +78,12 @@ fn print_usage(program: &str, opts: &Options) {
 #[test]
 fn test_parse_options() {
     let no_arguments = vec!["openby", "input.file", "-c", "configure.file"];
-    assert_eq!(Err(1),
-               parse_options(no_arguments[0..1].iter().map(|s| s.to_string()).collect()));
 
+    assert_eq!(Err(1), parse_options(no_arguments[0..1]));
     assert_eq!(Ok(("input.file".to_string(), DEFAULT_CONF_PATH.to_string())),
-               parse_options(no_arguments[0..2].iter().map(|s| s.to_string()).collect()));
-
+               parse_options(no_arguments[0..2]));
     assert_eq!(Ok(("input.file".to_string(), "configure.file".to_string())),
-               parse_options(no_arguments.iter().map(|s| s.to_string()).collect()));
+               parse_options(no_arguments));
 }
 
 #[test]
