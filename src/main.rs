@@ -23,15 +23,15 @@ enum AppError {
 #[allow(dead_code)]
 #[derive(Deserialize)]
 struct Config {
-    version: toml::Value,
+    version: f64,
     tools: Vec<Tools>,
 }
 
 #[allow(dead_code)]
 #[derive(Deserialize)]
 struct Tools {
-    command: toml::Value,
-    extentions: toml::value::Array,
+    command: String,
+    extentions: Vec<String>,
 }
 
 fn main() {
@@ -45,15 +45,17 @@ fn main() {
     process::exit(exit_code);
 }
 
-fn run() -> Result<i32, AppError> {
+fn run() -> Result<(), AppError> {
     let args: Vec<String> = env::args().collect();
     let args_str: Vec<&str> = args.iter().map(|s| s.as_str()).collect();
     let (file_name, conf_name) = parse_options(args_str)?;
     println!("Ok: {} {}", file_name, conf_name);
 
-    load_config(conf_name)?;
+    let conf = load_config(&conf_name)?;
 
-    Ok(0)
+    open_by(&conf, &file_name)?;
+
+    Ok(())
 }
 
 fn parse_options(args: Vec<&str>) -> Result<(String, String), AppError> {
@@ -75,8 +77,9 @@ fn parse_options(args: Vec<&str>) -> Result<(String, String), AppError> {
         matches.free[0].clone()
     } else {
         print_usage(&program, &opts);
-        return Result::Err(AppError::Io(io::Error::new(io::ErrorKind::NotFound,
-                                                       "FILE is not found")));
+        return Result::Err(AppError::Io(
+            io::Error::new(io::ErrorKind::NotFound, "FILE is not found"),
+        ));
     };
 
     let conf_name = if let Some(c) = matches.opt_str("c") {
@@ -93,32 +96,57 @@ fn print_usage(program: &str, opts: &Options) {
     println!("{}", opts.usage(&brief));
 }
 
-fn load_config(conf_name: String) -> Result<Config, AppError> {
-    let path = path::Path::new(conf_name.as_str());
+fn load_config(conf_name: &str) -> Result<Config, AppError> {
+    let path = path::Path::new(conf_name);
     if path.exists() == false {
-        return Result::Err(AppError::Io(io::Error::new(io::ErrorKind::NotFound,
-                                                       format!("{} is not exist",
-                                                               path.to_str().unwrap_or("")))));
+        return Result::Err(AppError::Io(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("{} is not exist", path.to_str().unwrap_or("")),
+        )));
     }
 
     let mut reader = io::BufReader::new(fs::File::open(path).map_err(AppError::Io)?);
     let mut s = String::new();
     reader.read_to_string(&mut s).map_err(AppError::Io)?;
 
-    let config: Config = toml::from_str(s.as_str()).map_err(AppError::Toml)?;
+    let conf: Config = toml::from_str(s.as_str()).map_err(AppError::Toml)?;
 
-    Ok(config)
+    Ok(conf)
+}
+
+fn open_by(conf: &Config, file_name: &str) -> Result<(), AppError> {
+    let path = path::Path::new(file_name);
+    if path.exists() == false {
+        return Result::Err(AppError::Io(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!("{} is not exist", path.to_str().unwrap_or("")),
+        )));
+    }
+
+    let ext = path.extension().ok_or(AppError::Io(io::Error::new(
+        io::ErrorKind::NotFound,
+        format!(
+            "{} has not extension",
+            path.to_str().unwrap_or("")
+        ),
+    )))?;
+
+    Ok(())
 }
 
 #[test]
 fn test_parse_options() {
     let no_arguments = vec!["openby", "input.file", "-c", "configure.file"];
 
-    assert_eq!(Err(1), parse_options(no_arguments[0..1]));
-    assert_eq!(Ok(("input.file".to_string(), DEFAULT_CONF_PATH.to_string())),
-               parse_options(no_arguments[0..2]));
-    assert_eq!(Ok(("input.file".to_string(), "configure.file".to_string())),
-               parse_options(no_arguments));
+    assert!(parse_options(no_arguments[0..1].to_vec()).is_err());
+    assert_eq!(
+        ("input.file".to_string(), DEFAULT_CONF_PATH.to_string()),
+        parse_options(no_arguments[0..2].to_vec()).unwrap_or(("".to_string(), "".to_string()))
+    );
+    assert_eq!(
+        ("input.file".to_string(), "configure.file".to_string()),
+        parse_options(no_arguments).unwrap_or(("".to_string(), "".to_string()))
+    );
 }
 
 #[test]
@@ -144,33 +172,21 @@ fn test_decode_toml() {
     "#;
 
     let config: Config = toml::from_str(toml_config_str).unwrap();
-    assert_eq!(config.version, toml::Value::Float(0.0));
+    assert_eq!(config.version, 0.0);
 
-    assert_eq!(config.tools[0].command,
-               toml::Value::String("apvlv".to_string()));
-    assert_eq!(config.tools[0].extentions[0],
-               toml::Value::String("pdf".to_string()));
+    assert_eq!(config.tools[0].command, "apvlv".to_string());
+    assert_eq!(config.tools[0].extentions[0], "pdf".to_string());
 
-    assert_eq!(config.tools[1].command,
-               toml::Value::String("mirage".to_string()));
-    assert_eq!(config.tools[1].extentions[0],
-               toml::Value::String("jpg".to_string()));
-    assert_eq!(config.tools[1].extentions[1],
-               toml::Value::String("png".to_string()));
-    assert_eq!(config.tools[1].extentions[2],
-               toml::Value::String("gif".to_string()));
+    assert_eq!(config.tools[1].command, "mirage".to_string());
+    assert_eq!(config.tools[1].extentions[0], "jpg".to_string());
+    assert_eq!(config.tools[1].extentions[1], "png".to_string());
+    assert_eq!(config.tools[1].extentions[2], "gif".to_string());
 
-    assert_eq!(config.tools[2].command,
-               toml::Value::String("vlc".to_string()));
-    assert_eq!(config.tools[2].extentions[0],
-               toml::Value::String("mp4".to_string()));
-    assert_eq!(config.tools[2].extentions[1],
-               toml::Value::String("mov".to_string()));
-    assert_eq!(config.tools[2].extentions[2],
-               toml::Value::String("avi".to_string()));
+    assert_eq!(config.tools[2].command, "vlc".to_string());
+    assert_eq!(config.tools[2].extentions[0], "mp4".to_string());
+    assert_eq!(config.tools[2].extentions[1], "mov".to_string());
+    assert_eq!(config.tools[2].extentions[2], "avi".to_string());
 
-    assert_eq!(config.tools[3].command,
-               toml::Value::String("vim -R".to_string()));
-    assert_eq!(config.tools[3].extentions[0],
-               toml::Value::String("conf".to_string()));
+    assert_eq!(config.tools[3].command, "vim -R".to_string());
+    assert_eq!(config.tools[3].extentions[0], "conf".to_string());
 }
