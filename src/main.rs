@@ -115,25 +115,33 @@ fn load_config(conf_name: &str) -> Result<Config, AppError> {
 }
 
 fn open_by(conf: &Config, file_name: &str) -> Result<(), AppError> {
-    let path = path::Path::new(file_name);
-    if path.exists() == false {
+    let file_path = path::Path::new(file_name);
+    if file_path.exists() == false {
         return Result::Err(AppError::Io(io::Error::new(
             io::ErrorKind::NotFound,
-            format!("{} is not exist", path.to_str().unwrap_or("")),
+            format!("{} is not exist", file_path.to_str().unwrap_or("")),
         )));
     }
 
-    let ext = path.extension().ok_or(AppError::Io(io::Error::new(
+    let ext = file_path.extension().ok_or(AppError::Io(io::Error::new(
         io::ErrorKind::NotFound,
         format!(
             "{} has not extension",
-            path.to_str().unwrap_or("")
+            file_path.to_str().unwrap_or("")
         ),
     )))?;
 
     match get_commnad_from_extension(conf, ext.to_str().unwrap()) {
-        Some(cmd) => println!("command = {}", cmd),
-        None => println!("command = None"),
+        Some(cmd) => {
+            println!("file = {:?}", file_path);
+            process::Command::new(cmd).arg(file_path).status().expect(
+                "failed to run",
+            );
+        }
+        None => {
+            println!("command = None");
+            // TODO: register command about this extension.
+        }
     }
 
     Ok(())
