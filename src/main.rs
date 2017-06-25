@@ -131,7 +131,22 @@ fn open_by(conf: &Config, file_name: &str) -> Result<(), AppError> {
         ),
     )))?;
 
+    match get_commnad_from_extension(conf, ext.to_str().unwrap()) {
+        Some(cmd) => println!("command = {}", cmd),
+        None => println!("command = None"),
+    }
+
     Ok(())
+}
+
+fn get_commnad_from_extension(conf: &Config, extension: &str) -> Option<String> {
+    let ext_string = extension.to_string();
+    for t in conf.tools.iter() {
+        if t.extentions.contains(&ext_string) {
+            return Some(t.command.clone());
+        }
+    }
+    None
 }
 
 #[test]
