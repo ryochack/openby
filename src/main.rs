@@ -132,11 +132,22 @@ fn open_by(conf: &Config, file_name: &str) -> Result<(), AppError> {
     )))?;
 
     match get_commnad_from_extension(conf, ext.to_str().unwrap()) {
-        Some(cmd) => {
-            println!("file = {:?}", file_path);
-            process::Command::new(cmd).arg(file_path).status().expect(
-                "failed to run",
-            );
+        Some(cmdline) => {
+            let cmd: Vec<&str> = cmdline.split_whitespace().collect();
+            println!("exec {:?} {:?}", cmd, file_path);
+
+            if cmd.len() > 1 {
+                process::Command::new(cmd[0])
+                    .args(cmd[1..].into_iter())
+                    .arg(file_path)
+                    .status()
+                    .expect("failed to run");
+            } else {
+                process::Command::new(cmd[0])
+                    .arg(file_path)
+                    .status()
+                    .expect("failed to run");
+            }
         }
         None => {
             println!("command = None");
