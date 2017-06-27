@@ -17,6 +17,8 @@ $ openby movie.mp4
 
 # TOML Configuration
 ```toml
+version = 0.0
+
 [[tools]]
 command = "apvlv"
 extentions = [ "pdf" ]
