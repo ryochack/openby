@@ -88,3 +88,23 @@ fn test_decode_toml() {
     assert_eq!(config.tools[3].command, "vim -R".to_string());
     assert_eq!(config.tools[3].extentions[0], "conf".to_string());
 }
+
+#[test]
+fn test_get_commnad() {
+    let conf = Config {
+        version: 0.0,
+        tools: vec![
+            Tools {
+                command: "cat".to_string(),
+                extentions: vec!["txt".to_string(), "log".to_string()],
+            },
+        ],
+    };
+
+    assert_eq!(get_commnad(&conf, "txt").unwrap(), "cat");
+    assert_eq!(get_commnad(&conf, "log").unwrap(), "cat");
+    assert_eq!(
+        get_commnad(&conf, "jpg").unwrap_or("none".to_string()),
+        "none"
+    );
+}
