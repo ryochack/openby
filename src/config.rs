@@ -5,14 +5,12 @@ use std::path;
 use toml;
 use error;
 
-#[allow(dead_code)]
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct Config {
     version: f64,
     tools: Vec<Tools>,
 }
 
-#[allow(dead_code)]
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct Tools {
     command: String,
@@ -21,7 +19,7 @@ pub struct Tools {
 
 pub fn load_config(conf_name: &str) -> Result<Config, error::AppError> {
     let path = path::Path::new(conf_name);
-    if path.exists() == false {
+    if !path.exists() {
         return Result::Err(error::AppError::Io(io::Error::new(
             io::ErrorKind::NotFound,
             format!("{} file is not exist", path.to_str().unwrap_or("")),
@@ -37,19 +35,19 @@ pub fn load_config(conf_name: &str) -> Result<Config, error::AppError> {
     Ok(conf)
 }
 
+#[allow(dead_code)]
 pub fn save_config(conf: &Config, conf_name: &str) -> Result<(), error::AppError> {
     let path = path::Path::new(conf_name);
     let parent_dir = path.parent();
     match parent_dir {
-        None => {}
         Some(d) if d == path::Path::new("") => {}
-        Some(d) if d.exists() == false => {
+        Some(d) if !d.exists() => {
             return Result::Err(error::AppError::Io(io::Error::new(
                 io::ErrorKind::NotFound,
                 format!("{} dir is not exist", d.to_str().unwrap_or("")),
             )));
         }
-        _ => {}
+        Some(_) | None => {}
     }
 
     let toml = toml::to_string(&conf).map_err(error::AppError::TomlSer)?;
