@@ -86,13 +86,15 @@ fn open_by(conf: &config::Config, file_name: &str) -> Result<(), error::AppError
         )));
     }
 
-    let ext = file_path.extension().ok_or(error::AppError::Io(io::Error::new(
-        io::ErrorKind::NotFound,
-        format!(
-            "{} has not extension",
-            file_path.to_str().unwrap_or("")
-        ),
-    )))?;
+    let ext = file_path.extension().ok_or(
+        error::AppError::Io(io::Error::new(
+            io::ErrorKind::NotFound,
+            format!(
+                "{} has not extension",
+                file_path.to_str().unwrap_or("")
+            ),
+        )),
+    )?;
 
     match config::get_commnad(conf, ext.to_str().unwrap()) {
         Some(cmdline) => {
@@ -129,4 +131,3 @@ fn test_parse_options() {
         parse_options(no_arguments).unwrap_or(("".to_string(), "".to_string()))
     );
 }
-

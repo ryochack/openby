@@ -4,6 +4,6 @@ use toml;
 #[derive(Debug)]
 pub enum AppError {
     Io(io::Error),
-    Toml(toml::de::Error),
+    TomlDe(toml::de::Error),
+    TomlSer(toml::ser::Error),
 }
-

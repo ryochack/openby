@@ -6,14 +6,14 @@ use toml;
 use error;
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct Config {
     version: f64,
     tools: Vec<Tools>,
 }
 
 #[allow(dead_code)]
-#[derive(Deserialize)]
+#[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct Tools {
     command: String,
     extentions: Vec<String>,
@@ -24,7 +24,7 @@ pub fn load_config(conf_name: &str) -> Result<Config, error::AppError> {
     if path.exists() == false {
         return Result::Err(error::AppError::Io(io::Error::new(
             io::ErrorKind::NotFound,
-            format!("{} is not exist", path.to_str().unwrap_or("")),
+            format!("{} file is not exist", path.to_str().unwrap_or("")),
         )));
     }
 
@@ -32,9 +32,31 @@ pub fn load_config(conf_name: &str) -> Result<Config, error::AppError> {
     let mut s = String::new();
     reader.read_to_string(&mut s).map_err(error::AppError::Io)?;
 
-    let conf: Config = toml::from_str(s.as_str()).map_err(error::AppError::Toml)?;
+    let conf: Config = toml::from_str(s.as_str()).map_err(error::AppError::TomlDe)?;
 
     Ok(conf)
+}
+
+pub fn save_config(conf: &Config, conf_name: &str) -> Result<(), error::AppError> {
+    let path = path::Path::new(conf_name);
+    let parent_dir = path.parent();
+    match parent_dir {
+        None => {}
+        Some(d) if d == path::Path::new("") => {}
+        Some(d) if d.exists() == false => {
+            return Result::Err(error::AppError::Io(io::Error::new(
+                io::ErrorKind::NotFound,
+                format!("{} dir is not exist", d.to_str().unwrap_or("")),
+            )));
+        }
+        _ => {}
+    }
+
+    let toml = toml::to_string(&conf).map_err(error::AppError::TomlSer)?;
+    let mut writer = io::BufWriter::new(fs::File::create(path).map_err(error::AppError::Io)?);
+    writer.write(toml.as_bytes()).map_err(error::AppError::Io)?;
+
+    Ok(())
 }
 
 pub fn get_commnad(conf: &Config, extension: &str) -> Option<String> {
@@ -87,6 +109,37 @@ fn test_decode_toml() {
 
     assert_eq!(config.tools[3].command, "vim -R".to_string());
     assert_eq!(config.tools[3].extentions[0], "conf".to_string());
+}
+
+#[test]
+fn test_save_config() {
+    let conf = Config {
+        version: 0.0,
+        tools: vec![
+            Tools {
+                command: "cat".to_string(),
+                extentions: vec!["txt".to_string(), "log".to_string()],
+            },
+        ],
+    };
+
+    assert_eq!(save_config(&conf, "test_config").unwrap(), ());
+    let loaded_conf = load_config("test_config").unwrap();
+    assert_eq!(conf, loaded_conf);
+    assert_eq!(save_config(&conf, "./test_config").unwrap(), ());
+
+    let loaded_conf = load_config("./test_config").unwrap();
+    assert_eq!(conf, loaded_conf);
+
+    assert_ne!(
+        match save_config(&conf, "invalid_path/test_config") {
+            Ok(_) => "ok",
+            Err(_) => "err",
+        },
+        "ok"
+    );
+
+    let _ = fs::remove_file("test_config");
 }
 
 #[test]
