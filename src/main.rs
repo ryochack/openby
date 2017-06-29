@@ -1,7 +1,5 @@
-#[macro_use]
-extern crate serde_derive;
-extern crate toml;
 extern crate getopts;
+extern crate openby;
 use std::env;
 use std::io;
 use std::io::Write;
@@ -9,8 +7,9 @@ use std::path;
 use std::process;
 use getopts::Options;
 use getopts::ParsingStyle;
-mod error;
-mod config;
+
+use openby::error;
+use openby::config;
 
 const DEFAULT_CONF_PATH: &str = "~/.config/openby/config";
 
