@@ -18,6 +18,13 @@ pub struct Tool {
 }
 
 impl Config {
+    pub fn new() -> Config {
+        Config {
+            version: 0.0,
+            tools: Vec::new(),
+        }
+    }
+
     pub fn load(conf_name: &str) -> Result<Config, error::AppError> {
         let path = path::Path::new(conf_name);
         if !path.exists() {
@@ -131,6 +138,13 @@ fn test_decode_toml() {
 
     assert_eq!(config.tools[3].command, "vim -R".to_string());
     assert_eq!(config.tools[3].extentions[0], "conf".to_string());
+}
+
+#[test]
+fn test_new_config() {
+    let conf1 = Config::new();
+    let conf2 = Config::new();
+    assert_eq!(conf1, conf2);
 }
 
 #[test]
