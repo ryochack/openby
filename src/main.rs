@@ -75,7 +75,7 @@ fn print_usage(program: &str, opts: &Options) {
 
 
 fn open_by(conf_name: &str, file_name: &str) -> Result<(), error::AppError> {
-    let mut conf = config::load_config(&conf_name)?;
+    let mut conf = config::Config::load(&conf_name)?;
 
     let file_path = path::Path::new(file_name);
     if !file_path.exists() {
@@ -96,7 +96,7 @@ fn open_by(conf_name: &str, file_name: &str) -> Result<(), error::AppError> {
     })?;
 
     let ext_str = ext.to_str().unwrap();
-    match config::get_commnad(&conf, ext_str) {
+    match conf.get_commnad(ext_str) {
         Some(cmdline) => {
             let cmds: Vec<&str> = cmdline.split_whitespace().collect();
             let (cmd, option) = cmds.split_first().unwrap();
@@ -113,7 +113,7 @@ fn open_by(conf_name: &str, file_name: &str) -> Result<(), error::AppError> {
             print!("> ");
             let reader = io::stdin();
             let cmdline = input_command(reader.lock())?;
-            let _ = config::add_config(&mut conf, cmdline.as_str(), ext_str);
+            let _ = conf.add(cmdline.as_str(), ext_str);
             println!("{:?}", conf);
         }
     }

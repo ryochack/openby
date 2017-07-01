@@ -17,79 +17,78 @@ pub struct Tool {
     extentions: Vec<String>,
 }
 
-pub fn load_config(conf_name: &str) -> Result<Config, error::AppError> {
-    let path = path::Path::new(conf_name);
-    if !path.exists() {
-        return Result::Err(error::AppError::Io(io::Error::new(
-            io::ErrorKind::NotFound,
-            format!("{} file is not exist", path.to_str().unwrap_or("")),
-        )));
-    }
-
-    let mut reader = io::BufReader::new(fs::File::open(path).map_err(error::AppError::Io)?);
-    let mut s = String::new();
-    reader.read_to_string(&mut s).map_err(error::AppError::Io)?;
-
-    let conf: Config = toml::from_str(s.as_str()).map_err(error::AppError::TomlDe)?;
-
-    Ok(conf)
-}
-
-#[allow(dead_code)]
-pub fn save_config(conf: &Config, conf_name: &str) -> Result<(), error::AppError> {
-    let path = path::Path::new(conf_name);
-    let parent_dir = path.parent();
-    match parent_dir {
-        Some(d) if d == path::Path::new("") => {}
-        Some(d) if !d.exists() => {
+impl Config {
+    pub fn load(conf_name: &str) -> Result<Config, error::AppError> {
+        let path = path::Path::new(conf_name);
+        if !path.exists() {
             return Result::Err(error::AppError::Io(io::Error::new(
                 io::ErrorKind::NotFound,
-                format!("{} dir is not exist", d.to_str().unwrap_or("")),
+                format!("{} file is not exist", path.to_str().unwrap_or("")),
             )));
         }
-        Some(_) | None => {}
+
+        let mut reader = io::BufReader::new(fs::File::open(path).map_err(error::AppError::Io)?);
+        let mut s = String::new();
+        reader.read_to_string(&mut s).map_err(error::AppError::Io)?;
+
+        let conf: Config = toml::from_str(s.as_str()).map_err(error::AppError::TomlDe)?;
+
+        Ok(conf)
     }
 
-    let toml = toml::to_string(&conf).map_err(error::AppError::TomlSer)?;
-    let mut writer = io::BufWriter::new(fs::File::create(path).map_err(error::AppError::Io)?);
-    writer.write(toml.as_bytes()).map_err(error::AppError::Io)?;
-
-    Ok(())
-}
-
-pub fn add_config(
-    conf: &mut Config,
-    command: &str,
-    extention: &str,
-) -> Result<(), error::AppError> {
-    let ext = extention.to_owned();
-
-    for t in conf.tools.iter_mut() {
-        if t.extentions.contains(&ext) {
-            println!(".{} is already exists", extention);
+    #[allow(dead_code)]
+    pub fn save(&self, conf_name: &str) -> Result<(), error::AppError> {
+        let path = path::Path::new(conf_name);
+        let parent_dir = path.parent();
+        match parent_dir {
+            Some(d) if d == path::Path::new("") => {}
+            Some(d) if !d.exists() => {
+                return Result::Err(error::AppError::Io(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("{} dir is not exist", d.to_str().unwrap_or("")),
+                )));
+            }
+            Some(_) | None => {}
         }
-        if t.command == command {
-            t.extentions.push(ext);
-            return Ok(());
-        }
+
+        let toml = toml::to_string(&self).map_err(error::AppError::TomlSer)?;
+        let mut writer = io::BufWriter::new(fs::File::create(path).map_err(error::AppError::Io)?);
+        writer.write(toml.as_bytes()).map_err(error::AppError::Io)?;
+
+        Ok(())
     }
 
-    conf.tools.push(Tool {
-        command: command.to_owned(),
-        extentions: vec![ext],
-    });
-    Ok(())
+    pub fn add(&mut self, command: &str, extention: &str) -> Result<(), error::AppError> {
+        let ext = extention.to_owned();
+
+        for t in self.tools.iter_mut() {
+            if t.extentions.contains(&ext) {
+                println!(".{} is already exists", extention);
+            }
+            if t.command == command {
+                t.extentions.push(ext);
+                return Ok(());
+            }
+        }
+
+        self.tools.push(Tool {
+            command: command.to_owned(),
+            extentions: vec![ext],
+        });
+        Ok(())
+    }
+
+    pub fn get_commnad(&self, extension: &str) -> Option<String> {
+        let ext_string = extension.to_string();
+        for t in self.tools.iter() {
+            if t.extentions.contains(&ext_string) {
+                return Some(t.command.clone());
+            }
+        }
+        None
+    }
 }
 
-pub fn get_commnad(conf: &Config, extension: &str) -> Option<String> {
-    let ext_string = extension.to_string();
-    for t in conf.tools.iter() {
-        if t.extentions.contains(&ext_string) {
-            return Some(t.command.clone());
-        }
-    }
-    None
-}
 
 #[test]
 fn test_decode_toml() {
@@ -145,16 +144,16 @@ fn test_save_config() {
         ],
     };
 
-    assert_eq!(save_config(&conf, "test_config").unwrap(), ());
-    let loaded_conf = load_config("test_config").unwrap();
+    assert_eq!(conf.save("test_config").unwrap(), ());
+    let loaded_conf = Config::load("test_config").unwrap();
     assert_eq!(conf, loaded_conf);
-    assert_eq!(save_config(&conf, "./test_config").unwrap(), ());
+    assert_eq!(conf.save("./test_config").unwrap(), ());
 
-    let loaded_conf = load_config("./test_config").unwrap();
+    let loaded_conf = Config::load("./test_config").unwrap();
     assert_eq!(conf, loaded_conf);
 
     assert_ne!(
-        match save_config(&conf, "invalid_path/test_config") {
+        match conf.save("invalid_path/test_config") {
             Ok(_) => "ok",
             Err(_) => "err",
         },
@@ -176,10 +175,10 @@ fn test_get_commnad() {
         ],
     };
 
-    assert_eq!(get_commnad(&conf, "txt").unwrap(), "cat");
-    assert_eq!(get_commnad(&conf, "log").unwrap(), "cat");
+    assert_eq!(conf.get_commnad("txt").unwrap(), "cat");
+    assert_eq!(conf.get_commnad("log").unwrap(), "cat");
     assert_eq!(
-        get_commnad(&conf, "jpg").unwrap_or("none".to_string()),
+        conf.get_commnad("jpg").unwrap_or("none".to_string()),
         "none"
     );
 }
