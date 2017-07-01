@@ -64,6 +64,7 @@ impl Config {
         for t in self.tools.iter_mut() {
             if t.extentions.contains(&ext) {
                 println!(".{} is already exists", extention);
+                return Ok(()); // FIXME
             }
             if t.command == command {
                 t.extentions.push(ext);
@@ -161,6 +162,56 @@ fn test_save_config() {
     );
 
     let _ = fs::remove_file("test_config");
+}
+
+#[test]
+fn test_add_config() {
+    let mut conf = Config {
+        version: 0.0,
+        tools: vec![
+            Tool {
+                command: "cat".to_string(),
+                extentions: vec!["txt".to_string(), "log".to_string()],
+            },
+        ],
+    };
+    let conf_added_extention = Config {
+        version: 0.0,
+        tools: vec![
+            Tool {
+                command: "cat".to_string(),
+                extentions: vec!["txt".to_string(), "log".to_string(), "new_ext".to_string()],
+            },
+        ],
+    };
+
+    // add same command
+    assert_ne!(conf, conf_added_extention);
+    conf.add("cat", "new_ext").unwrap();
+    assert_eq!(conf, conf_added_extention);
+
+    let conf_added_command = Config {
+        version: 0.0,
+        tools: vec![
+            Tool {
+                command: "cat".to_string(),
+                extentions: vec!["txt".to_string(), "log".to_string(), "new_ext".to_string()],
+            },
+            Tool {
+                command: "new_cmd".to_string(),
+                extentions: vec!["xxx".to_string()],
+            },
+        ],
+    };
+
+    // add new command and extention
+    assert_ne!(conf, conf_added_command);
+    conf.add("new_cmd", "xxx").unwrap();
+    assert_eq!(conf, conf_added_command);
+
+    // add same command and extention
+    conf.add("new_cmd", "xxx").unwrap();
+    assert_eq!(conf, conf_added_command);
 }
 
 #[test]
