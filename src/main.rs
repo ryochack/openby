@@ -30,9 +30,7 @@ fn run() -> Result<(), error::AppError> {
     let (file_name, conf_name) = parse_options(&args_str)?;
     println!("Ok: {} {}", file_name, conf_name);
 
-    let conf = config::load_config(&conf_name)?;
-
-    open_by(&conf, &file_name)?;
+    open_by(&conf_name, &file_name)?;
 
     Ok(())
 }
@@ -76,7 +74,9 @@ fn print_usage(program: &str, opts: &Options) {
 }
 
 
-fn open_by(conf: &config::Config, file_name: &str) -> Result<(), error::AppError> {
+fn open_by(conf_name: &str, file_name: &str) -> Result<(), error::AppError> {
+    let mut conf = config::load_config(&conf_name)?;
+
     let file_path = path::Path::new(file_name);
     if !file_path.exists() {
         return Result::Err(error::AppError::Io(io::Error::new(
@@ -95,7 +95,8 @@ fn open_by(conf: &config::Config, file_name: &str) -> Result<(), error::AppError
         ))
     })?;
 
-    match config::get_commnad(conf, ext.to_str().unwrap()) {
+    let ext_str = ext.to_str().unwrap();
+    match config::get_commnad(&conf, ext_str) {
         Some(cmdline) => {
             let cmds: Vec<&str> = cmdline.split_whitespace().collect();
             let (cmd, option) = cmds.split_first().unwrap();
@@ -108,13 +109,33 @@ fn open_by(conf: &config::Config, file_name: &str) -> Result<(), error::AppError
                 .expect("failed to run");
         }
         None => {
-            println!("command = None");
-            // TODO: register command about this extension.
+            println!("set the command associated with .{}", ext_str);
+            print!("> ");
+            let reader = io::stdin();
+            let cmdline = input_command(reader.lock())?;
+            let _ = config::add_config(&mut conf, cmdline.as_str(), ext_str);
+            println!("{:?}", conf);
         }
     }
 
     Ok(())
 }
+
+
+fn input_command<T: io::BufRead>(mut reader: T) -> Result<String, error::AppError> {
+    let _ = std::io::stdout().flush();
+    let mut input = String::new();
+    let _ = reader.read_line(&mut input).map_err(error::AppError::Io)?;
+    let concated: String = input.split_whitespace().fold(String::new(), |mut s, w| {
+        if s.len() > 0 {
+            s.push(' ');
+        }
+        s.push_str(&w);
+        s
+    });
+    Ok(concated)
+}
+
 
 #[test]
 fn test_parse_options() {

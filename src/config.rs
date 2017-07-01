@@ -8,11 +8,11 @@ use error;
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct Config {
     version: f64,
-    tools: Vec<Tools>,
+    tools: Vec<Tool>,
 }
 
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
-pub struct Tools {
+pub struct Tool {
     command: String,
     extentions: Vec<String>,
 }
@@ -54,6 +54,30 @@ pub fn save_config(conf: &Config, conf_name: &str) -> Result<(), error::AppError
     let mut writer = io::BufWriter::new(fs::File::create(path).map_err(error::AppError::Io)?);
     writer.write(toml.as_bytes()).map_err(error::AppError::Io)?;
 
+    Ok(())
+}
+
+pub fn add_config(
+    conf: &mut Config,
+    command: &str,
+    extention: &str,
+) -> Result<(), error::AppError> {
+    let ext = extention.to_owned();
+
+    for t in conf.tools.iter_mut() {
+        if t.extentions.contains(&ext) {
+            println!(".{} is already exists", extention);
+        }
+        if t.command == command {
+            t.extentions.push(ext);
+            return Ok(());
+        }
+    }
+
+    conf.tools.push(Tool {
+        command: command.to_owned(),
+        extentions: vec![ext],
+    });
     Ok(())
 }
 
@@ -114,7 +138,7 @@ fn test_save_config() {
     let conf = Config {
         version: 0.0,
         tools: vec![
-            Tools {
+            Tool {
                 command: "cat".to_string(),
                 extentions: vec!["txt".to_string(), "log".to_string()],
             },
@@ -145,7 +169,7 @@ fn test_get_commnad() {
     let conf = Config {
         version: 0.0,
         tools: vec![
-            Tools {
+            Tool {
                 command: "cat".to_string(),
                 extentions: vec!["txt".to_string(), "log".to_string()],
             },
