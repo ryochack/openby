@@ -141,14 +141,14 @@ fn test_decode_toml() {
 }
 
 #[test]
-fn test_new_config() {
+fn test_new() {
     let conf1 = Config::new();
     let conf2 = Config::new();
     assert_eq!(conf1, conf2);
 }
 
 #[test]
-fn test_save_config() {
+fn test_save() {
     let conf = Config {
         version: 0.0,
         tools: vec![
@@ -179,7 +179,7 @@ fn test_save_config() {
 }
 
 #[test]
-fn test_add_config() {
+fn test_add() {
     let mut conf = Config {
         version: 0.0,
         tools: vec![
