@@ -49,12 +49,7 @@ impl Config {
         let parent_dir = path.parent();
         match parent_dir {
             Some(d) if d == path::Path::new("") => {}
-            Some(d) if !d.exists() => {
-                return Result::Err(error::AppError::Io(io::Error::new(
-                    io::ErrorKind::NotFound,
-                    format!("{} dir is not exist", d.to_str().unwrap_or("")),
-                )));
-            }
+            Some(d) if !d.exists() => fs::create_dir_all(d).map_err(error::AppError::Io)?,
             Some(_) | None => {}
         }
 
