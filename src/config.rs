@@ -14,7 +14,7 @@ pub struct Config {
 #[derive(Deserialize, Serialize, PartialEq, Debug)]
 pub struct Tool {
     command: String,
-    extentions: Vec<String>,
+    extensions: Vec<String>,
 }
 
 impl Config {
@@ -43,7 +43,6 @@ impl Config {
         Ok(conf)
     }
 
-    #[allow(dead_code)]
     pub fn save(&self, conf_name: &str) -> Result<(), error::AppError> {
         let path = path::Path::new(conf_name);
         let parent_dir = path.parent();
@@ -60,31 +59,85 @@ impl Config {
         Ok(())
     }
 
-    pub fn add(&mut self, command: &str, extention: &str) -> Result<(), error::AppError> {
-        let ext = extention.to_owned();
+    pub fn add(&mut self, command: &str, extension: &str) -> Result<(), error::AppError> {
+        let ext = extension.to_owned();
 
         for t in self.tools.iter_mut() {
-            if t.extentions.contains(&ext) {
-                println!(".{} is already exists", extention);
+            if t.extensions.contains(&ext) {
+                println!(".{} is already exists", extension);
                 return Ok(()); // FIXME
             }
             if t.command == command {
-                t.extentions.push(ext);
+                t.extensions.push(ext);
                 return Ok(());
             }
         }
 
         self.tools.push(Tool {
             command: command.to_owned(),
-            extentions: vec![ext],
+            extensions: vec![ext],
         });
         Ok(())
+    }
+
+    pub fn remove_command(&mut self, command: &str) -> Result<(), error::AppError> {
+        let mut remove_i = None;
+        for (i, t) in self.tools.iter_mut().enumerate() {
+            if t.command == command {
+                remove_i = Some(i);
+                break;
+            }
+        }
+        match remove_i {
+            Some(i) => {
+                self.tools.remove(i);
+                Ok(())
+            }
+            None => {
+                Result::Err(error::AppError::Io(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!("{} command is not registered", command),
+                )))
+            }
+        }
+    }
+
+    pub fn remove_extension(&mut self, extension: &str) -> Result<(), error::AppError> {
+        let mut tools_i = None;
+        let mut ext_i = None;
+        for (ia, t) in self.tools.iter().enumerate() {
+            if t.extensions.contains(&extension.to_string()) {
+                tools_i = Some(ia);
+                for (ib, e) in t.extensions.iter().enumerate() {
+                    if e == extension {
+                        ext_i = Some(ib);
+                        break;
+                    }
+                }
+            }
+        }
+        match ext_i {
+            Some(ext_i) => {
+                let tools_i = tools_i.unwrap();
+                self.tools[tools_i].extensions.remove(ext_i);
+                if self.tools[tools_i].extensions.is_empty() {
+                    self.tools.remove(tools_i);
+                }
+                Ok(())
+            }
+            None => {
+                Result::Err(error::AppError::Io(io::Error::new(
+                    io::ErrorKind::NotFound,
+                    format!(".{} extension is not registered", extension),
+                )))
+            }
+        }
     }
 
     pub fn get_command(&self, extension: &str) -> Option<String> {
         let ext_string = extension.to_string();
         for t in self.tools.iter() {
-            if t.extentions.contains(&ext_string) {
+            if t.extensions.contains(&ext_string) {
                 return Some(t.command.clone());
             }
         }
@@ -100,39 +153,39 @@ fn test_decode_toml() {
 
     [[tools]]
     command = "apvlv"
-    extentions = [ "pdf" ]
+    extensions = [ "pdf" ]
 
     [[tools]]
     command = "mirage"
-    extentions = [ "jpg", "png", "gif" ]
+    extensions = [ "jpg", "png", "gif" ]
 
     [[tools]]
     command = "vlc"
-    extentions = [ "mp4", "mov", "avi" ]
+    extensions = [ "mp4", "mov", "avi" ]
 
     [[tools]]
     command = "vim -R"
-    extentions = [ "conf" ]
+    extensions = [ "conf" ]
     "#;
 
     let config: Config = toml::from_str(toml_config_str).unwrap();
     assert_eq!(config.version, 0.0);
 
     assert_eq!(config.tools[0].command, "apvlv".to_string());
-    assert_eq!(config.tools[0].extentions[0], "pdf".to_string());
+    assert_eq!(config.tools[0].extensions[0], "pdf".to_string());
 
     assert_eq!(config.tools[1].command, "mirage".to_string());
-    assert_eq!(config.tools[1].extentions[0], "jpg".to_string());
-    assert_eq!(config.tools[1].extentions[1], "png".to_string());
-    assert_eq!(config.tools[1].extentions[2], "gif".to_string());
+    assert_eq!(config.tools[1].extensions[0], "jpg".to_string());
+    assert_eq!(config.tools[1].extensions[1], "png".to_string());
+    assert_eq!(config.tools[1].extensions[2], "gif".to_string());
 
     assert_eq!(config.tools[2].command, "vlc".to_string());
-    assert_eq!(config.tools[2].extentions[0], "mp4".to_string());
-    assert_eq!(config.tools[2].extentions[1], "mov".to_string());
-    assert_eq!(config.tools[2].extentions[2], "avi".to_string());
+    assert_eq!(config.tools[2].extensions[0], "mp4".to_string());
+    assert_eq!(config.tools[2].extensions[1], "mov".to_string());
+    assert_eq!(config.tools[2].extensions[2], "avi".to_string());
 
     assert_eq!(config.tools[3].command, "vim -R".to_string());
-    assert_eq!(config.tools[3].extentions[0], "conf".to_string());
+    assert_eq!(config.tools[3].extensions[0], "conf".to_string());
 }
 
 #[test]
@@ -149,7 +202,7 @@ fn test_save() {
         tools: vec![
             Tool {
                 command: "cat".to_string(),
-                extentions: vec!["txt".to_string(), "log".to_string()],
+                extensions: vec!["txt".to_string(), "log".to_string()],
             },
         ],
     };
@@ -162,14 +215,6 @@ fn test_save() {
     let loaded_conf = Config::load("./test_config").unwrap();
     assert_eq!(conf, loaded_conf);
 
-    assert_ne!(
-        match conf.save("invalid_path/test_config") {
-            Ok(_) => "ok",
-            Err(_) => "err",
-        },
-        "ok"
-    );
-
     let _ = fs::remove_file("test_config");
 }
 
@@ -180,47 +225,137 @@ fn test_add() {
         tools: vec![
             Tool {
                 command: "cat".to_string(),
-                extentions: vec!["txt".to_string(), "log".to_string()],
+                extensions: vec!["txt".to_string(), "log".to_string()],
             },
         ],
     };
-    let conf_added_extention = Config {
+    let conf_added_extension = Config {
         version: 0.0,
         tools: vec![
             Tool {
                 command: "cat".to_string(),
-                extentions: vec!["txt".to_string(), "log".to_string(), "new_ext".to_string()],
+                extensions: vec!["txt".to_string(), "log".to_string(), "new_ext".to_string()],
             },
         ],
     };
 
     // add same command
-    assert_ne!(conf, conf_added_extention);
+    assert_ne!(conf, conf_added_extension);
     conf.add("cat", "new_ext").unwrap();
-    assert_eq!(conf, conf_added_extention);
+    assert_eq!(conf, conf_added_extension);
 
     let conf_added_command = Config {
         version: 0.0,
         tools: vec![
             Tool {
                 command: "cat".to_string(),
-                extentions: vec!["txt".to_string(), "log".to_string(), "new_ext".to_string()],
+                extensions: vec!["txt".to_string(), "log".to_string(), "new_ext".to_string()],
             },
             Tool {
                 command: "new_cmd".to_string(),
-                extentions: vec!["xxx".to_string()],
+                extensions: vec!["xxx".to_string()],
             },
         ],
     };
 
-    // add new command and extention
+    // add new command and extension
     assert_ne!(conf, conf_added_command);
     conf.add("new_cmd", "xxx").unwrap();
     assert_eq!(conf, conf_added_command);
 
-    // add same command and extention
+    // add same command and extension
     conf.add("new_cmd", "xxx").unwrap();
     assert_eq!(conf, conf_added_command);
+}
+
+#[test]
+fn test_remove_command() {
+    let mut conf = Config {
+        version: 0.0,
+        tools: vec![
+            Tool {
+                command: "cat".to_string(),
+                extensions: vec!["txt".to_string(), "log".to_string()],
+            },
+            Tool {
+                command: "objdump".to_string(),
+                extensions: vec!["o".to_string()],
+            },
+        ],
+    };
+
+    // remove_command
+    assert!(conf.remove_command("cat").is_ok());
+    let conf_expected = Config {
+        version: 0.0,
+        tools: vec![
+            Tool {
+                command: "objdump".to_string(),
+                extensions: vec!["o".to_string()],
+            },
+        ],
+    };
+    assert_eq!(conf, conf_expected);
+
+    // remove_command
+    assert!(conf.remove_command("objdump").is_ok());
+    let conf_expected = Config {
+        version: 0.0,
+        tools: Vec::new(),
+    };
+    assert_eq!(conf, conf_expected);
+
+    // error occured
+    assert!(conf.remove_command("objdump").is_err());
+}
+
+#[test]
+fn test_remove_extension() {
+    let mut conf = Config {
+        version: 0.0,
+        tools: vec![
+            Tool {
+                command: "cat".to_string(),
+                extensions: vec!["txt".to_string(), "log".to_string()],
+            },
+            Tool {
+                command: "objdump".to_string(),
+                extensions: vec!["o".to_string()],
+            },
+        ],
+    };
+
+    // remove_command
+    assert!(conf.remove_extension("txt").is_ok());
+    let conf_expected = Config {
+        version: 0.0,
+        tools: vec![
+            Tool {
+                command: "cat".to_string(),
+                extensions: vec!["log".to_string()],
+            },
+            Tool {
+                command: "objdump".to_string(),
+                extensions: vec!["o".to_string()],
+            },
+        ],
+    };
+    assert_eq!(conf, conf_expected);
+
+    assert!(conf.remove_extension("o").is_ok());
+    let conf_expected = Config {
+        version: 0.0,
+        tools: vec![
+            Tool {
+                command: "cat".to_string(),
+                extensions: vec!["log".to_string()],
+            },
+        ],
+    };
+    assert_eq!(conf, conf_expected);
+
+    // error occured
+    assert!(conf.remove_extension("o").is_err());
 }
 
 #[test]
@@ -230,7 +365,7 @@ fn test_get_command() {
         tools: vec![
             Tool {
                 command: "cat".to_string(),
-                extentions: vec!["txt".to_string(), "log".to_string()],
+                extensions: vec!["txt".to_string(), "log".to_string()],
             },
         ],
     };
