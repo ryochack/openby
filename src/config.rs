@@ -81,7 +81,7 @@ impl Config {
         Ok(())
     }
 
-    pub fn get_commnad(&self, extension: &str) -> Option<String> {
+    pub fn get_command(&self, extension: &str) -> Option<String> {
         let ext_string = extension.to_string();
         for t in self.tools.iter() {
             if t.extentions.contains(&ext_string) {
@@ -224,7 +224,7 @@ fn test_add() {
 }
 
 #[test]
-fn test_get_commnad() {
+fn test_get_command() {
     let conf = Config {
         version: 0.0,
         tools: vec![
@@ -235,10 +235,10 @@ fn test_get_commnad() {
         ],
     };
 
-    assert_eq!(conf.get_commnad("txt").unwrap(), "cat");
-    assert_eq!(conf.get_commnad("log").unwrap(), "cat");
+    assert_eq!(conf.get_command("txt").unwrap(), "cat");
+    assert_eq!(conf.get_command("log").unwrap(), "cat");
     assert_eq!(
-        conf.get_commnad("jpg").unwrap_or("none".to_string()),
+        conf.get_command("jpg").unwrap_or("none".to_string()),
         "none"
     );
 }

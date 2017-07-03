@@ -101,7 +101,7 @@ fn open_by(conf_name: &str, file_name: &str) -> Result<(), error::AppError> {
     })?;
 
     let ext_str = ext.to_str().unwrap();
-    let cmdline = conf.get_commnad(ext_str).unwrap_or_else(|| {
+    let cmdline = conf.get_command(ext_str).unwrap_or_else(|| {
         println!("set the command associated with .{}", ext_str);
         print!("> ");
         let reader = io::stdin();
