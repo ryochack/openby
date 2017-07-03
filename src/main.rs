@@ -116,7 +116,7 @@ fn open_by(conf_name: &str, file_name: &str) -> Result<(), error::AppError> {
     process::Command::new(cmd)
         .args(option.into_iter())
         .arg(file_path)
-        .status()
+        .spawn()
         .expect("failed to run");
 
     conf.save(conf_name)?;
