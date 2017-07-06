@@ -17,14 +17,16 @@ pub struct Tool {
     extensions: Vec<String>,
 }
 
-impl Config {
-    pub fn new() -> Config {
+impl Default for Config {
+    fn default() -> Config {
         Config {
             version: 0.0,
             tools: Vec::new(),
         }
     }
+}
 
+impl Config {
     pub fn load(conf_name: &str) -> Result<Config, error::AppError> {
         let path = path::Path::new(conf_name);
         if !path.exists() {
@@ -190,8 +192,8 @@ fn test_decode_toml() {
 
 #[test]
 fn test_new() {
-    let conf1 = Config::new();
-    let conf2 = Config::new();
+    let conf1 = Config::default();
+    let conf2 = Config::default();
     assert_eq!(conf1, conf2);
 }
 

@@ -77,9 +77,9 @@ fn print_usage(program: &str, opts: &Options) {
 fn open_by(conf_name: &str, file_name: &str) -> Result<(), error::AppError> {
     //let mut conf = config::Config::load(&conf_name)?;
     let mut conf = if path::Path::new(conf_name).exists() {
-        config::Config::load(&conf_name)?
+        config::Config::load(conf_name)?
     } else {
-        config::Config::new()
+        config::Config::default()
     };
 
     let file_path = path::Path::new(file_name);
@@ -130,10 +130,10 @@ fn input_command<T: io::BufRead>(mut reader: T) -> Result<String, error::AppErro
     let mut input = String::new();
     let _ = reader.read_line(&mut input).map_err(error::AppError::Io)?;
     let concated: String = input.split_whitespace().fold(String::new(), |mut s, w| {
-        if s.len() > 0 {
+        if !s.is_empty() {
             s.push(' ');
         }
-        s.push_str(&w);
+        s.push_str(w);
         s
     });
     Ok(concated)
