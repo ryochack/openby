@@ -5,7 +5,7 @@ use std::path;
 use toml;
 use error;
 
-#[derive(Deserialize, Serialize, PartialEq, Debug)]
+#[derive(Deserialize, Serialize, Default, PartialEq, Debug)]
 pub struct Config {
     version: f64,
     tools: Vec<Tool>,
@@ -15,15 +15,6 @@ pub struct Config {
 pub struct Tool {
     command: String,
     extensions: Vec<String>,
-}
-
-impl Default for Config {
-    fn default() -> Config {
-        Config {
-            version: 0.0,
-            tools: Vec::new(),
-        }
-    }
 }
 
 impl Config {
